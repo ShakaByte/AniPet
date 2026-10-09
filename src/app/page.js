@@ -2,9 +2,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-// The A-to-Z Data Blueprint Contract
-const PET_DIRECTORY = {
+const RAW_DIRECTORY = {
     Cats: ["Persian", "Siamese", "Maine Coon", "Ragdoll", "Bengal"],
     Dogs: ["Golden Retriever", "German Shepherd", "Beagle", "Poodle", "Boxer"],
     Fishes: ["Betta Fish", "Goldfish", "Guppy", "Angel Fish", "Neon Tetra"],
@@ -17,28 +17,32 @@ const PET_DIRECTORY = {
     ],
 };
 
+const PET_DIRECTORY = Object.fromEntries(
+    Object.keys(RAW_DIRECTORY)
+        .sort()
+        .map((cat) => [cat, [...RAW_DIRECTORY[cat]].sort()]),
+);
+
 export default function Dashboard() {
+    const router = useRouter();
     const [searchQuery, setSearchQuery] = useState("");
     const [openSection, setOpenSection] = useState(null);
-    const [loadingStatus, setLoadingStatus] = useState("");
 
-    // Logic: Handles interaction when a user clicks a specific breed item
-    const handleBreedClick = (breed) => {
-        setSearchQuery(breed);
-        setLoadingStatus(`Fetching dynamic safety & care data for ${breed}...`);
-        console.log(`Target selected for upcoming Module 2: ${breed}`);
+    // Go straight to the profile page; it loads its own data
+    const openBreed = (name) => {
+        const breed = name.trim();
+        if (!breed) return;
+        router.push(`/breed/${encodeURIComponent(breed)}`);
     };
 
     const handleSearchSubmit = (e) => {
         e.preventDefault();
-        if (!searchQuery.trim()) return;
-        setLoadingStatus(`Searching AI database for "${searchQuery}"...`);
+        openBreed(searchQuery);
     };
 
     return (
         <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-6 md:p-12">
             <div className="max-w-3xl mx-auto">
-                {/* Header Layout */}
                 <header className="text-center mb-12">
                     <h1 className="text-4xl font-extrabold tracking-tight text-indigo-600 mb-2">
                         🐾 ANIPET
@@ -49,7 +53,6 @@ export default function Dashboard() {
                     </p>
                 </header>
 
-                {/* Global Search Bar Module */}
                 <form
                     onSubmit={handleSearchSubmit}
                     className="mb-10 flex gap-2"
@@ -69,14 +72,6 @@ export default function Dashboard() {
                     </button>
                 </form>
 
-                {/* Temporary UI Status Feedback Box */}
-                {loadingStatus && (
-                    <div className="mb-6 p-4 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-xl animate-pulse font-medium text-sm text-center">
-                        {loadingStatus}
-                    </div>
-                )}
-
-                {/* A-Z Accordion Directory Sections */}
                 <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                     <h2 className="text-xl font-bold border-b border-slate-100 pb-4 mb-4 text-slate-700">
                         Browse Animals A-Z
@@ -109,16 +104,14 @@ export default function Dashboard() {
                                     </button>
 
                                     {isOpen && (
-                                        <div className="p-4 bg-white grid grid-cols-2 sm:grid-cols-3 gap-2 border-t border-slate-100 transition-all duration-300">
+                                        <div className="p-4 bg-white grid grid-cols-2 sm:grid-cols-3 gap-2 border-t border-slate-100">
                                             {PET_DIRECTORY[category].map(
                                                 (breed) => (
                                                     <button
                                                         key={breed}
                                                         type="button"
                                                         onClick={() =>
-                                                            handleBreedClick(
-                                                                breed,
-                                                            )
+                                                            openBreed(breed)
                                                         }
                                                         className="text-left px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors font-medium border border-transparent hover:border-indigo-100"
                                                     >
