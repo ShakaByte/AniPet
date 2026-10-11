@@ -8,20 +8,54 @@ import Profile from "../../profile";
 
 const GROUPS = ["g1", "g2", "g3"];
 
-const cacheKey = (breed, group) => `anipet:v2:${breed.toLowerCase()}:${group}`;
+const PREFIX = "anipet:v2:";
+const MAX_AGE = 90 * 24 * 60 * 60 * 1000; // 90 days
 
-function readCache(breed, group) {
+const cacheKey = (type, breed, group) =>
+    `${PREFIX}${type}:${breed.toLowerCase()}:${group}`;
+
+function readCache(type, breed, group) {
     try {
-        const raw = sessionStorage.getItem(cacheKey(breed, group));
-        return raw ? JSON.parse(raw) : null;
+        const k = cacheKey(type, breed, group);
+        const raw = localStorage.getItem(k);
+        if (!raw) return null;
+        const { t, v } = JSON.parse(raw);
+        if (!t || !v || Date.now() - t > MAX_AGE) {
+            localStorage.removeItem(k); // expired
+            return null;
+        }
+        // Visited again: restart the 90 days
+        localStorage.setItem(k, JSON.stringify({ t: Date.now(), v }));
+        return v;
     } catch {
         return null;
     }
 }
 
-function writeCache(breed, group, value) {
+function writeCache(type, breed, group, value) {
     try {
-        sessionStorage.setItem(cacheKey(breed, group), JSON.stringify(value));
+        localStorage.setItem(
+            cacheKey(type, breed, group),
+            JSON.stringify({ t: Date.now(), v: value }),
+        );
+    } catch {
+        /* storage full or blocked: ignore */
+    }
+}
+
+// Removes expired entries for breeds the user never revisited
+function purgeExpired() {
+    try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+            const k = localStorage.key(i);
+            if (!k || !k.startsWith(PREFIX)) continue;
+            try {
+                const { t } = JSON.parse(localStorage.getItem(k));
+                if (!t || Date.now() - t > MAX_AGE) localStorage.removeItem(k);
+            } catch {
+                localStorage.removeItem(k);
+            }
+        }
     } catch {
         /* ignore */
     }
@@ -30,7 +64,7 @@ function writeCache(breed, group, value) {
 // Prevents duplicate identical requests (e.g. React dev double-mount)
 const inflight = new Map();
 function requestGroup(breed, group, type) {
-    const key = cacheKey(breed, group);
+    const key = cacheKey(type, breed, group);
     if (!inflight.has(key)) {
         const p = fetchPetDetails(breed, group, type).finally(() =>
             inflight.delete(key),
@@ -56,7 +90,7 @@ export default function BreedClient({ breedName, animalType }) {
             setStatus((s) => ({ ...s, [group]: "loading" }));
             setErrors((e) => ({ ...e, [group]: "" }));
 
-            const cached = readCache(breedName, group);
+            const cached = readCache(animalType, breedName, group);
             if (cached) {
                 setData((d) => ({ ...d, ...cached }));
                 setStatus((s) => ({ ...s, [group]: "ready" }));
@@ -68,7 +102,7 @@ export default function BreedClient({ breedName, animalType }) {
 
             if (res.success) {
                 const { success, ...fields } = res;
-                writeCache(breedName, group, fields);
+                writeCache(animalType, breedName, group, fields);
                 setData((d) => ({ ...d, ...fields }));
                 setStatus((s) => ({ ...s, [group]: "ready" }));
             } else {
@@ -78,6 +112,10 @@ export default function BreedClient({ breedName, animalType }) {
         },
         [breedName, animalType],
     );
+
+    useEffect(() => {
+        purgeExpired();
+    }, []);
 
     useEffect(() => {
         activeBreed.current = breedName;

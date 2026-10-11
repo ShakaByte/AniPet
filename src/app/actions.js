@@ -5,7 +5,7 @@ import { findBreed } from "./directory";
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-import { cacheKey, cacheGet, cacheSet } from "./cache";
+import { cacheKey, cacheGet, cacheSet, logStats } from "./cache";
 
 /* ---------- Schema (provider-neutral) ---------- */
 
@@ -326,7 +326,9 @@ function classify(err) {
         status === 402 ||
         status === 403 ||
         status === 404 ||
-        /API key|not found|not supported|INVALID_ARGUMENT|does not exist/i.test(msg,)
+        /API key|not found|not supported|INVALID_ARGUMENT|does not exist/i.test(
+            msg,
+        )
     )
         return { kind: "config", cooldownMs: 6 * HOUR };
     return { kind: "busy", cooldownMs: 1 * MIN }; // 5xx, timeouts, network
@@ -377,7 +379,7 @@ async function generateViaChain(breed, animalType, group) {
                 console.log(
                     `[AniPet] ${group} "${breed}" served by ${p.id} (${p.model})`,
                 );
-                return data;
+                return { data, by: p.id };
             } catch (err) {
                 const c = classify(err);
                 if (c.cooldownMs) cooldown.set(p.id, Date.now() + c.cooldownMs);
@@ -406,28 +408,40 @@ export async function fetchPetDetails(
 ) {
     try {
         if (!GROUPS[group]) throw new Error("Invalid section request.");
+
         const match = findBreed(breedName, animalType);
-        if (!match)
+        if (!match) {
+            await logStats({ rejected: 1 });
             return {
                 success: false,
                 error: "No match found. Check your spelling. If it's correct, it's not available yet.",
             };
+        }
         const cleanBreed = match.breed;
         const cleanType = match.type;
 
+        const t0 = Date.now();
         const key = cacheKey(cleanType, cleanBreed, group);
         const hit = await cacheGet(key);
         if (hit) {
             console.log("cache HIT", key);
+            await logStats({ hit: 1, hit_ms: Date.now() - t0 });
             return { success: true, ...hit };
         }
         console.log("cache MISS", key);
 
-        const data = await generateViaChain(cleanBreed, cleanType, group);
+        const t1 = Date.now();
+        const { data, by } = await generateViaChain(
+            cleanBreed,
+            cleanType,
+            group,
+        );
         await cacheSet(key, data);
+        await logStats({ miss: 1, ai_ms: Date.now() - t1, [`by_${by}`]: 1 });
         return { success: true, ...data };
     } catch (error) {
         console.error(`[AniPet] fetch error (${group}):`, error.message);
+        await logStats({ fail: 1 });
         return { success: false, error: friendlyError(error) };
     }
 }
