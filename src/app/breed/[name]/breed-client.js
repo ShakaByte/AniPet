@@ -6,79 +6,104 @@ import { useRouter } from "next/navigation";
 import { fetchPetDetails } from "../../actions";
 import Profile from "../../profile";
 
-const cacheKey = (breed, part) => `anipet:${breed.toLowerCase()}:${part}`;
+const GROUPS = ["g1", "g2", "g3"];
 
-function readCache(breed, part) {
+const cacheKey = (breed, group) => `anipet:v2:${breed.toLowerCase()}:${group}`;
+
+function readCache(breed, group) {
     try {
-        const raw = sessionStorage.getItem(cacheKey(breed, part));
+        const raw = sessionStorage.getItem(cacheKey(breed, group));
         return raw ? JSON.parse(raw) : null;
     } catch {
         return null;
     }
 }
 
-function writeCache(breed, part, value) {
+function writeCache(breed, group, value) {
     try {
-        sessionStorage.setItem(cacheKey(breed, part), JSON.stringify(value));
+        sessionStorage.setItem(cacheKey(breed, group), JSON.stringify(value));
     } catch {
-        /* storage unavailable: ignore */
+        /* ignore */
     }
 }
 
-export default function BreedClient({ breedName }) {
+// Prevents duplicate identical requests (e.g. React dev double-mount)
+const inflight = new Map();
+function requestGroup(breed, group, type) {
+    const key = cacheKey(breed, group);
+    if (!inflight.has(key)) {
+        const p = fetchPetDetails(breed, group, type).finally(() =>
+            inflight.delete(key),
+        );
+        inflight.set(key, p);
+    }
+    return inflight.get(key);
+}
+
+const initialStatus = () =>
+    Object.fromEntries(GROUPS.map((g) => [g, "loading"]));
+
+export default function BreedClient({ breedName, animalType }) {
     const router = useRouter();
 
     const [data, setData] = useState({});
+    const [status, setStatus] = useState(initialStatus);
     const [errors, setErrors] = useState({});
     const activeBreed = useRef(breedName);
 
-    const loadPart = useCallback(
-        async (part) => {
-            setErrors((e) => ({ ...e, [part]: "" }));
+    const loadGroup = useCallback(
+        async (group) => {
+            setStatus((s) => ({ ...s, [group]: "loading" }));
+            setErrors((e) => ({ ...e, [group]: "" }));
 
-            const cached = readCache(breedName, part);
+            const cached = readCache(breedName, group);
             if (cached) {
                 setData((d) => ({ ...d, ...cached }));
+                setStatus((s) => ({ ...s, [group]: "ready" }));
                 return;
             }
 
-            const res = await fetchPetDetails(breedName, part);
-            if (activeBreed.current !== breedName) return; // user navigated away
+            const res = await requestGroup(breedName, group, animalType);
+            if (activeBreed.current !== breedName) return;
 
             if (res.success) {
                 const { success, ...fields } = res;
-                writeCache(breedName, part, fields);
+                writeCache(breedName, group, fields);
                 setData((d) => ({ ...d, ...fields }));
+                setStatus((s) => ({ ...s, [group]: "ready" }));
             } else {
-                setErrors((e) => ({ ...e, [part]: res.error }));
+                setErrors((e) => ({ ...e, [group]: res.error }));
+                setStatus((s) => ({ ...s, [group]: "error" }));
             }
         },
-        [breedName],
+        [breedName, animalType],
     );
 
     useEffect(() => {
         activeBreed.current = breedName;
         setData({});
         setErrors({});
-        loadPart("quick");
-        loadPart("detail");
-    }, [breedName, loadPart]);
+        setStatus(initialStatus());
+        GROUPS.forEach((g) => loadGroup(g));
+    }, [breedName, loadGroup]);
 
     return (
-        <div className="max-w-3xl mx-auto">
+        <div>
             <button
                 type="button"
                 onClick={() => router.push("/")}
-                className="mb-6 text-sm font-semibold text-indigo-600 hover:text-indigo-800"
+                className="mb-4 text-sm font-semibold text-indigo-600 hover:text-indigo-800"
             >
-                ← Back to AniPet
+                ← Back home
             </button>
 
             <Profile
                 breedName={breedName}
+                animalType={animalType}
                 data={data}
+                status={status}
                 errors={errors}
-                onRetry={loadPart}
+                onRetry={loadGroup}
             />
         </div>
     );
