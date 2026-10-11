@@ -3,130 +3,229 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Header from "./header";
+import { DIRECTORY } from "./directory";
 
-const RAW_DIRECTORY = {
-    Cats: ["Persian", "Siamese", "Maine Coon", "Ragdoll", "Bengal"],
-    Dogs: ["Golden Retriever", "German Shepherd", "Beagle", "Poodle", "Boxer"],
-    Fishes: ["Betta Fish", "Goldfish", "Guppy", "Angel Fish", "Neon Tetra"],
-    Snakes: [
-        "Ball Python",
-        "Corn Snake",
-        "Garter Snake",
-        "Milk Snake",
-        "King Snake",
-    ],
-};
-
-const PET_DIRECTORY = Object.fromEntries(
-    Object.keys(RAW_DIRECTORY)
-        .sort()
-        .map((cat) => [cat, [...RAW_DIRECTORY[cat]].sort()]),
-);
+const ALL_TAGS = [...new Set(DIRECTORY.flatMap((a) => a.tags))].sort();
+const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+const lettersInUse = new Set(DIRECTORY.map((a) => a.name[0].toUpperCase()));
 
 export default function Dashboard() {
     const router = useRouter();
-    const [searchQuery, setSearchQuery] = useState("");
-    const [openSection, setOpenSection] = useState(null);
+    const [notice, setNotice] = useState("");
+    const [query, setQuery] = useState("");
+    const [tag, setTag] = useState("all");
+    const [openAnimal, setOpenAnimal] = useState(null);
 
-    // Go straight to the profile page; it loads its own data
-    const openBreed = (name) => {
-        const breed = name.trim();
-        if (!breed) return;
-        router.push(`/breed/${encodeURIComponent(breed)}`);
+    const q = query.trim().toLowerCase();
+
+    const openBreed = (breed, type) => {
+        const name = breed.trim();
+        if (!name) return;
+        const suffix = type ? `?type=${encodeURIComponent(type)}` : "";
+        router.push(`/breed/${encodeURIComponent(name)}${suffix}`);
     };
 
-    const handleSearchSubmit = (e) => {
+    const matchesQuery = (a) =>
+        !q ||
+        a.name.toLowerCase().includes(q) ||
+        a.breeds.some((b) => b.toLowerCase().includes(q));
+
+    const filtered = DIRECTORY.filter(
+        (a) => (tag === "all" || a.tags.includes(tag)) && matchesQuery(a),
+    );
+
+    const visibleBreeds = (a) =>
+        q && !a.name.toLowerCase().includes(q)
+            ? a.breeds.filter((b) => b.toLowerCase().includes(q))
+            : a.breeds;
+
+    const handleSubmit = (e) => {
         e.preventDefault();
-        openBreed(searchQuery);
+        if (!q) return;
+        const all = filtered.flatMap((a) =>
+            a.breeds.map((b) => ({ breed: b, type: a.name })),
+        );
+        const exact = all.find((x) => x.breed.toLowerCase() === q);
+        const found = all.filter((x) => x.breed.toLowerCase().includes(q));
+        if (exact) openBreed(exact.breed, exact.type);
+        else if (found.length === 1) openBreed(found[0].breed, found[0].type);
+        else if (found.length > 1)
+            setNotice("Several matches. Pick one from the list below.");
+        else
+            setNotice(
+                "No match found. Check your spelling. If it's correct, it's not available yet.",
+            );
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 text-slate-900 font-sans p-6 md:p-12">
-            <div className="max-w-3xl mx-auto">
-                <header className="text-center mb-12">
-                    <h1 className="text-4xl font-extrabold tracking-tight text-indigo-600 mb-2">
-                        🐾 ANIPET
-                    </h1>
-                    <p className="text-slate-500 text-lg">
-                        Understand, care for, and deeply bond with your
-                        companion.
-                    </p>
-                </header>
+        <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
+            <Header />
 
+            <main className="max-w-3xl mx-auto p-4 md:p-8">
+                <section className="text-center mb-6">
+                    <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-indigo-600 mb-1">
+                        Every Pet, A to Z
+                    </h1>
+                    <p className="text-slate-500">
+                        Pick an animal, choose a breed, and learn how to care
+                        for it.
+                    </p>
+                </section>
+
+                {/* Search + filter */}
                 <form
-                    onSubmit={handleSearchSubmit}
-                    className="mb-10 flex gap-2"
+                    onSubmit={handleSubmit}
+                    className="mb-4 flex flex-col sm:flex-row gap-2"
                 >
                     <input
                         type="text"
-                        placeholder="Don't see your pet? Type any breed here (e.g., Bearded Dragon)..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm bg-white"
+                        placeholder="Search an animal or breed..."
+                        value={query}
+                        onChange={(e) => {
+                            setQuery(e.target.value);
+                            setNotice("");
+                        }}
+                        className="flex-1 px-4 py-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm bg-white"
                     />
-                    <button
-                        type="submit"
-                        className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors shadow"
+                    <select
+                        value={tag}
+                        onChange={(e) => setTag(e.target.value)}
+                        className="px-4 py-3 border border-slate-200 rounded-xl bg-white shadow-sm capitalize focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        aria-label="Filter by category"
                     >
-                        Explore
-                    </button>
+                        <option value="all">All categories</option>
+                        {ALL_TAGS.map((t) => (
+                            <option key={t} value={t}>
+                                {t}
+                            </option>
+                        ))}
+                    </select>
                 </form>
 
-                <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                    <h2 className="text-xl font-bold border-b border-slate-100 pb-4 mb-4 text-slate-700">
-                        Browse Animals A-Z
-                    </h2>
-                    <div className="space-y-3">
-                        {Object.keys(PET_DIRECTORY).map((category) => {
-                            const isOpen = openSection === category;
-                            return (
-                                <div
-                                    key={category}
-                                    className="border border-slate-100 rounded-xl overflow-hidden"
-                                >
-                                    <button
-                                        type="button"
-                                        onClick={() =>
-                                            setOpenSection(
-                                                isOpen ? null : category,
-                                            )
-                                        }
-                                        className="w-full flex justify-between items-center px-5 py-4 bg-slate-50 hover:bg-slate-100 transition-colors font-semibold text-slate-700 text-left"
-                                    >
-                                        <span>
-                                            {category === "Snakes"
-                                                ? "🐍 Exotic / Snakes"
-                                                : `✨ ${category}`}
-                                        </span>
-                                        <span className="text-xl text-slate-400">
-                                            {isOpen ? "−" : "+"}
-                                        </span>
-                                    </button>
+                {notice && (
+                    <p className="mb-4 text-sm text-center text-slate-600">
+                        {notice}
+                    </p>
+                )}
 
-                                    {isOpen && (
-                                        <div className="p-4 bg-white grid grid-cols-2 sm:grid-cols-3 gap-2 border-t border-slate-100">
-                                            {PET_DIRECTORY[category].map(
-                                                (breed) => (
-                                                    <button
-                                                        key={breed}
-                                                        type="button"
-                                                        onClick={() =>
-                                                            openBreed(breed)
-                                                        }
-                                                        className="text-left px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors font-medium border border-transparent hover:border-indigo-100"
-                                                    >
-                                                        {breed}
-                                                    </button>
-                                                ),
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                </section>
-            </div>
+                {/* A-Z jump bar */}
+                <div className="flex flex-wrap gap-1 mb-5 justify-center">
+                    {LETTERS.map((L) =>
+                        lettersInUse.has(L) ? (
+                            <a
+                                key={L}
+                                href={`#letter-${L}`}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg text-sm font-bold bg-indigo-600 text-white hover:bg-indigo-700"
+                            >
+                                {L}
+                            </a>
+                        ) : (
+                            <span
+                                key={L}
+                                className="w-8 h-8 flex items-center justify-center rounded-lg text-sm font-semibold bg-slate-100 text-slate-300"
+                            >
+                                {L}
+                            </span>
+                        ),
+                    )}
+                </div>
+
+                {/* Directory */}
+                <div className="space-y-5">
+                    {filtered.length === 0 && (
+                        <div className="p-6 bg-white border border-slate-200 rounded-2xl text-center">
+                            <p className="text-slate-600 mb-3">
+                                No match found. Check your spelling. If it's
+                                correct, it's not available yet.
+                            </p>
+                        </div>
+                    )}
+
+                    {LETTERS.filter((L) =>
+                        filtered.some((a) => a.name[0].toUpperCase() === L),
+                    ).map((L) => (
+                        <section
+                            key={L}
+                            id={`letter-${L}`}
+                            className="scroll-mt-4"
+                        >
+                            <h2 className="text-lg font-extrabold text-indigo-600 mb-2 px-1">
+                                {L}
+                            </h2>
+                            <div className="space-y-2">
+                                {filtered
+                                    .filter(
+                                        (a) => a.name[0].toUpperCase() === L,
+                                    )
+                                    .map((a) => {
+                                        const isOpen =
+                                            openAnimal === a.name ||
+                                            q.length > 0;
+                                        return (
+                                            <div
+                                                key={a.name}
+                                                className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm"
+                                            >
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        setOpenAnimal(
+                                                            openAnimal ===
+                                                                a.name
+                                                                ? null
+                                                                : a.name,
+                                                        )
+                                                    }
+                                                    className="w-full flex justify-between items-center px-5 py-4 hover:bg-slate-50 transition-colors text-left"
+                                                >
+                                                    <span className="flex items-center gap-3 flex-wrap">
+                                                        <span className="font-bold text-slate-800">
+                                                            {a.name}
+                                                        </span>
+                                                        {a.tags.map((t) => (
+                                                            <span
+                                                                key={t}
+                                                                className="px-2 py-0.5 text-[11px] font-semibold rounded-full bg-indigo-50 text-indigo-600 capitalize"
+                                                            >
+                                                                {t}
+                                                            </span>
+                                                        ))}
+                                                    </span>
+                                                    <span className="text-xl text-slate-400">
+                                                        {isOpen ? "−" : "+"}
+                                                    </span>
+                                                </button>
+
+                                                {isOpen && (
+                                                    <div className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-2 border-t border-slate-100">
+                                                        {visibleBreeds(a).map(
+                                                            (breed) => (
+                                                                <button
+                                                                    key={breed}
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        openBreed(
+                                                                            breed,
+                                                                            a.name,
+                                                                        )
+                                                                    }
+                                                                    className="text-left px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors font-medium border border-transparent hover:border-indigo-100"
+                                                                >
+                                                                    {breed}
+                                                                </button>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                            </div>
+                        </section>
+                    ))}
+                </div>
+            </main>
         </div>
     );
 }
