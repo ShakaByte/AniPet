@@ -33,3 +33,8 @@ People who bring home a pet often struggle to find reliable, organised care info
 | AI | Gemini API, Groq API |
 | Caching | Upstash Redis |
 | CI/CD | GitHub Actions |
+
+
+## 👤 Author
+
+**Vedant Pokale** ([ShakaByte](https://github.com/ShakaByte))
