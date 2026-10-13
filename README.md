@@ -1,21 +1,35 @@
-1. Overview
-AniPet is a web app that gives new and prospective pet owners a complete, easy-to-read care profile for a chosen animal breed. The user picks a breed from an A-Z directory and receives a nine-section profile with a breed photo, covering history, temperament, training, health, grooming, vaccines, emergencies and more, written in plain language.
+# 🐾 AniPet
 
-2. Problem Statement
+A web app that gives pet owners a complete, easy-to-read care profile for any supported animal breed.
+
+🔗 [Live Demo](https://ani-pet.vercel.app)
+
+## 📌 Overview
+
+AniPet gives new and prospective pet owners a complete care profile for a chosen breed. Pick a breed from an A-Z directory and get a nine-section profile with a breed photo, covering history, temperament, training, health, grooming, vaccines, emergencies and more, written in plain language.
+
+## ❗ Problem Statement
+
 People who bring home a pet often struggle to find reliable, organised care information in one place.
-•	Information is scattered across many websites, forums and videos, and quality varies widely.
-•	Content is often written for experts, or is padded with advertising and affiliate links.
-•	Beginners do not know what to ask: when to vaccinate, how to groom, what to feed, which signs mean a vet visit is urgent.
-•	Advice for dogs and cats is easy to find, but less common pets (fish, snakes and other exotic animals) are poorly covered.
-•	Most existing tools need accounts, subscriptions or payment before showing useful content.
+- Information is scattered across websites, forums and videos, and quality varies widely.
+- Content is often written for experts or padded with ads and affiliate links.
+- Beginners don't know what to ask: when to vaccinate, how to groom, what to feed, which signs mean an urgent vet visit.
+- Dogs and cats are well covered, but less common pets (fish, snakes, exotics) are not.
+- Most existing tools require accounts, subscriptions or payment before showing useful content.
 
-3. Solution
-AniPet combines a curated A-Z directory of animals and breeds with AI-generated care guidance, delivered as a fast, tabbed profile.
-•	A curated directory is the single source of truth for what can be searched, so users only ever see supported breeds.
-•	Care content is generated on demand by AI in a fixed, validated structure, then cached so the same breed is never generated twice.
-•	Content loads in three parallel groups so the first sections appear without waiting for the whole profile.
-•	A layered cache (browser, then shared Redis) makes repeat views near-instant and keeps AI usage inside free quotas.
-•	The app needs no sign-up, no payment and no stored personal data.
+## ✅ Solution
 
+- **Curated A-Z directory:** the single source of truth for searchable breeds, so users only see supported ones
+- **AI-generated care guidance:** produced on demand in a fixed, validated structure, then cached so a breed is never generated twice
+- **Parallel loading:** content loads in three groups, so the first sections appear without waiting for the full profile
+- **Layered caching:** browser cache, then shared Redis, for near-instant repeat views and AI usage within free quotas
+- **Zero friction:** no sign-up, no payment, no stored personal data
 
-4. Tech Stack: Next.js, React, JavaScript, Tailwind CSS, Upstash Redis, Gemini API, Groq API, GitHub Actions
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Frontend | Next.js, React, JavaScript, Tailwind CSS |
+| AI | Gemini API, Groq API |
+| Caching | Upstash Redis |
+| CI/CD | GitHub Actions |
