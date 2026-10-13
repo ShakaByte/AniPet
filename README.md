@@ -9,4 +9,13 @@ People who bring home a pet often struggle to find reliable, organised care info
 •	Advice for dogs and cats is easy to find, but less common pets (fish, snakes and other exotic animals) are poorly covered.
 •	Most existing tools need accounts, subscriptions or payment before showing useful content.
 
-3. Tech Stack: Next.js, React, JavaScript, Tailwind CSS, Upstash Redis, Gemini API, Groq API, GitHub Actions
+3. Solution
+AniPet combines a curated A-Z directory of animals and breeds with AI-generated care guidance, delivered as a fast, tabbed profile.
+•	A curated directory is the single source of truth for what can be searched, so users only ever see supported breeds.
+•	Care content is generated on demand by AI in a fixed, validated structure, then cached so the same breed is never generated twice.
+•	Content loads in three parallel groups so the first sections appear without waiting for the whole profile.
+•	A layered cache (browser, then shared Redis) makes repeat views near-instant and keeps AI usage inside free quotas.
+•	The app needs no sign-up, no payment and no stored personal data.
+
+
+4. Tech Stack: Next.js, React, JavaScript, Tailwind CSS, Upstash Redis, Gemini API, Groq API, GitHub Actions
